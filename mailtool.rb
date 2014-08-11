@@ -28,8 +28,8 @@ class EmailToggle
   @@hash_path = '/root/.accesshash'
   @@log_path = '/root/direct_login_spam.log'
 ######## Configuration ends ###########
-  require 'securerandom'
-  require 'lumberg'  
+  require 'securerandom' ## Used to Generate password
+  require 'lumberg'  ## Used to interact with C-panel api
   def initialize(options)
     @email = options[:email]
     @remove = options[:remove]
@@ -43,7 +43,7 @@ class EmailToggle
       hash: %x(cat #{@@hash_path})
       )
     username = %x(/scripts/whoowns #{@domain}).chomp
-    puts "#{username}"
+    #puts "#{username}"
     cp_email = Lumberg::Cpanel::Email.new(
       server:       server,  # An instance of Lumberg::Server
       api_username: username  # User whose cPanel we'll be interacting with
@@ -51,7 +51,7 @@ class EmailToggle
       puts "Changing password of #{@email} using lumberg"
       @password = SecureRandom.urlsafe_base64(12)
       process_options = { domain: @domain, email: @email, password: @password }
-      puts "process_options : #{process_options}"
+      #puts "process_options : #{process_options}"
       passwd_result = cp_email.change_password( process_options )
         if passwd_result[:params][:data][0][:reason] == ''
            puts "Successfully changed password of #{@email}"
@@ -73,27 +73,32 @@ class EmailToggle
         %x( /etc/init.d/exim restart )
     else
       puts "Didn't remove any emails from the mailque"
-    end
+    end  
+  end
+end
+=begin
+Following block will retrive e-mail address from command line and validate them. 
+If they pass the validation it will pass to the E-mail toggle class to process
+=end
+
+ARGV.each do|emailadd|
+  if emailadd.include? "@"
+    options[:email] = emailadd.downcase
+    #puts "Email: #{options[:email]}"
+    options[:domain] = emailadd.split("@").last.downcase
+    #puts "Domain: #{options[:domain]}"
+    dom_check = %x( grep ^#{options[:domain]} /etc/userdomains )
+    if dom_check.empty?
+      puts "Given domain doesn't exist"
+    else
+      mailtoggle = EmailToggle.new(options)
+      mailtoggle.process_options
+    end 
+  else
+    puts"Invalid Email address entered";
   end
 end
 
-ARGV.each do|emailadd|
-if emailadd.include? "@"
-  options[:email] = emailadd.downcase
-  puts "Email: #{options[:email]}"
-  options[:domain] = emailadd.split("@").last.downcase
-  puts "Domain: #{options[:domain]}"
-  dom_check = %x( grep ^#{options[:domain]} /etc/userdomains )
-  if dom_check.empty?
-    puts "Given domain doesn't exist"
-  else
-    mailtoggle = EmailToggle.new(options)
-    mailtoggle.process_options
-  end
-else
-  puts"Invalid Email address entered";
-end
-end
 if ARGV.empty?
   puts "#{option_parser}"
 end
