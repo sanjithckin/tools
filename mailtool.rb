@@ -65,35 +65,35 @@ class EmailToggle
  end
  case @remove
  when 'one'
- puts "Clearing e-mails under #{@email}"
+   puts "Clearing e-mails under #{@email}"
  %x( exiqgrep -i -f #{@email} | xargs -P10 -i exim -Mrm '{}' | tail -1 )
  when 'all'
- puts "Removing all e-mails under #{@domain}"
+  puts "Removing all e-mails under #{@domain}"
  %x( exiqgrep -i -f #{@domain} | xargs -P10 -i exim -Mrm '{}' | tail -1 )
  %x( /etc/init.d/exim restart )
  else
- puts "Didn't remove any emails from the mailque"
+   puts "Didn't remove any emails from the mailque"
  end 
  end
 end
 
 ARGV.each do|emailadd|
 if emailadd.include? "@"
- options[:email] = emailadd.downcase
- puts "Email: #{options[:email]}"
- options[:domain] = emailadd.split("@").last.downcase
- puts "Domain: #{options[:domain]}"
- dom_check = %x( grep ^#{options[:domain]} /etc/userdomains )
- if dom_check.empty?
- puts "Given domain doesn't exist"
- else
- mailtoggle = EmailToggle.new(options)
- mailtoggle.process_options
- end
+  options[:email] = emailadd.downcase
+  puts "Email: #{options[:email]}"
+  options[:domain] = emailadd.split("@").last.downcase
+  puts "Domain: #{options[:domain]}"
+  dom_check = %x( grep ^#{options[:domain]} /etc/userdomains )
+  if dom_check.empty?
+    puts "Given domain doesn't exist"
+  else
+    mailtoggle = EmailToggle.new(options)
+    mailtoggle.process_options
+  end
 else
- puts"Invalid Email address entered";
+  puts"Invalid Email address entered";
 end
 end
 if ARGV.empty?
- puts "#{option_parser}"
+  puts "#{option_parser}"
 end
