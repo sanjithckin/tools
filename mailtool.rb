@@ -23,7 +23,7 @@ end
 option_parser.parse!
 
 class EmailToggle
-######## Configure below values #######
+######## Configure below values #######  
   @@hostname = 'localhost'
   @@hash_path = '/root/.accesshash'
   @@log_path = '/root/direct_login_spam.log'
@@ -73,11 +73,11 @@ class EmailToggle
         %x( /etc/init.d/exim restart )
     else
       puts "Didn't remove any emails from the mailque"
-    end
+    end  
   end
 end
 =begin
-Following block will retrive e-mail address from command line and validate them.
+Following block will retrive e-mail address from command line and validate them. 
 If they pass the validation it will pass to the E-mail toggle class to process
 =end
 
@@ -93,7 +93,7 @@ ARGV.each do|emailadd|
     else
       mailtoggle = EmailToggle.new(options)
       mailtoggle.process_options
-    end
+    end 
   else
     puts"Invalid Email address entered";
   end
