@@ -35,7 +35,7 @@ class EmailToggle
     @remove = options[:remove]
     @domain = options[:domain]
   end
-
+  # Method to change e-mail account password
   def change_email_password
     server = Lumberg::Whm::Server.new(
               host: HOST_NAME,
@@ -59,7 +59,7 @@ class EmailToggle
       puts "#{passwd_result[:params][:data][0][:reason]}"
     end
   end
-  
+  # Method to clear mailqueue
   def clear_queue
     puts "#{@remove}"
     case @remove
@@ -97,5 +97,3 @@ else
     end
   end
 end
-
-
