@@ -53,7 +53,7 @@ class ChangeEmailPassword
     puts "Domain name: #{@domain}"
     puts "Domain owner: #{@username}"
     trueuser = `grep -w \^#{@username} /etc/trueuserowners|cut -d\: -f2|uniq`.chomp
-    puts 'True owner: ' + `grep -w #{trueuser}$ /etc/trueuserdomains|uniq`
+    puts 'True owner: ' + `grep -w #{trueuser}$ /etc/trueuserdomains|uniq` if trueuser != root
   end
 end
 
