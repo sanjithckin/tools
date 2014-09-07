@@ -98,7 +98,7 @@ end
 
 # Getting command line arguments uding optparse
 require 'optparse'
-options = { email: nil, change: false, remove: false, domain: nil, info: false }
+options = { email: nil, change: false, remove: false, domain: nil, info: false, help: false }
 option_parser = OptionParser.new do |opts|
   opts.banner = "Usage: #{executable_name} [Options]"
   opts.separator ''
@@ -113,14 +113,18 @@ option_parser = OptionParser.new do |opts|
   opts.on('-r', '--remove', 'Remove all mails from the account') { options[:remove] = 'one' }
   opts.on('-a', '--removeall', 'Remove all mails from the domain') { options[:remove] = 'all' }
   opts.on('-i', '--info', 'Enter email account') { options[:info] = true }
-  opts.on('-h', '--help', 'Displays Help') { puts option_parser }
+  opts.on('-h', '--help', 'Displays Help') do
+    options[:help] = true
+    puts option_parser
+  end
 end
 option_parser.parse!
 
 # Following block will retrive e-mail address from command line.
 # We are using ARGV to retrieve multiple e-mail address
 # If they pass the validation it will pass to the corresponding classes.
-if ARGV.empty?
+if ARGV.empty? && options[:help] == false
+  puts 'Please enter some options and e-mail address'
   puts "#{option_parser}"
   exit
 else
