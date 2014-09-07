@@ -121,7 +121,6 @@ option_parser.parse!
 # We are using ARGV to retrieve multiple e-mail address
 # If they pass the validation it will pass to the corresponding classes.
 if ARGV.empty?
-  puts 'No e-mail address provided'
   puts "#{option_parser}"
   exit
 else
