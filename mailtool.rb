@@ -4,25 +4,9 @@
 # of multiple e-mail accounts along with the option to remove all
 # e-mails from one e-mail / domain from the queue
 executable_name = File.basename($PROGRAM_NAME)
-require 'optparse'
-options = { email: nil, change: false, remove: false, domain: nil, log: false }
-option_parser = OptionParser.new do |opts|
-  opts.banner = "Usage: #{executable_name} [Options]"
-  opts.separator ''
-  opts.separator 'Options'
-  opts.separator '-c or --changepassword: Changes password of e-mail account'
-  opts.separator '-r or --remove: Removes e-mails from given e-mail account'
-  opts.separator '-a or --removeall: Removes all e-mails from particlar domain'
-  opts.separator '-h or --help : Displays this Help'
 
-  opts.on('-c', '--changepassword', 'Enter email account') { options[:change] = true }
-  opts.on('-r', '--remove', 'Remove all mails from the account') { options[:remove] = 'one' }
-  opts.on('-a', '--removeall', 'Remove all mails from the domain') { options[:remove] = 'all' }
-  opts.on('-h', '--help', 'Displays Help') { puts option_parser }
-end
-option_parser.parse!
-# Following class will take arguments from optparse and process it
-class EmailToggle
+# Following class will take email addressfrom optparse/ ARGV and change password
+class ChangeEmailPassword
   # Configure below values
   HOST_NAME = 'localhost'
   HASH_FILE_PATH = '/root/.accesshash'
@@ -30,21 +14,23 @@ class EmailToggle
   # Configuration ends
   require 'securerandom' ## Used to Generate password
   require 'lumberg'  ## Used to interact with C-panel api
+
   def initialize(options)
     @email = options[:email]
     @remove = options[:remove]
     @domain = options[:domain]
   end
+
   # Method to change e-mail account password
-  def change_email_password
+  def change_password
     server = Lumberg::Whm::Server.new(
               host: HOST_NAME,
               hash: `cat #{HASH_FILE_PATH}`
               )
-    username = `/scripts/whoowns #{@domain}`.chomp
+    @username = `/scripts/whoowns #{@domain}`.chomp
     cp_email = Lumberg::Cpanel::Email.new(
                 server:       server,  # An instance of Lumberg::Server
-                api_username: username  # User whose cPanel we'll be interacting with
+                api_username: @username  # User whose cPanel we'll be interacting with
                 )
     puts "Changing password of #{@email} using lumberg"
     @password = SecureRandom.urlsafe_base64(12)
@@ -56,12 +42,31 @@ class EmailToggle
       logtime = time.strftime('%Y-%m-%d %H:%M')
       File.open("#{LOG_FILE_PATH}", 'a') { |logfile| logfile.puts "#{logtime}: #{@email}" }
     else
+      # It will print the c-panel error message if failed to change the password
       puts "#{passwd_result[:params][:data][0][:reason]}"
     end
   end
+
+  # Method to retrive user information
+  def user_details
+    puts "Email-address: #{@email}"
+    puts "Domain name: #{@domain}"
+    puts "Domain owner: #{@username}"
+    trueuser = `grep -w \^#{@username} /etc/trueuserowners|cut -d\: -f2|uniq`.chomp
+    puts 'True owner: ' + `grep -w #{trueuser}$ /etc/trueuserdomains|uniq`
+  end
+end
+
+# Class to clear mailqueue
+class ClearMailQueue
+  def initialize(options)
+    @email = options[:email]
+    @remove = options[:remove]
+    @domain = options[:domain]
+  end
+
   # Method to clear mailqueue
   def clear_queue
-    puts "#{@remove}"
     case @remove
     when 'one'
       puts "Clearing e-mails under #{@email}"
@@ -75,25 +80,62 @@ class EmailToggle
   end
 end
 
+# Following method will validate e-mail adddres
+def email_validation(emailaddress)
+  if emailaddress.include? '@'
+    domain = emailaddress.split('@').last.downcase
+    dom_check = `grep ^#{domain} /etc/userdomains`
+    if dom_check.empty?
+      puts "The domain #{domain} doesn\'t exist"
+    else
+      true
+    end
+  else
+    puts 'Invalid e-mail address entered'
+    false
+  end
+end
+
+# Getting command line arguments uding optparse
+require 'optparse'
+options = { email: nil, change: false, remove: false, domain: nil, info: false }
+option_parser = OptionParser.new do |opts|
+  opts.banner = "Usage: #{executable_name} [Options]"
+  opts.separator ''
+  opts.separator 'Options'
+  opts.separator '-c or --changepassword: Changes password of e-mail account'
+  opts.separator '-r or --remove: Removes e-mails from given e-mail account'
+  opts.separator '-a or --removeall: Removes all e-mails from particlar domain'
+  opts.separator '-i or --info : Displays domain information'
+  opts.separator '-h or --help : Displays this Help'
+
+  opts.on('-c', '--changepassword', 'Enter email account') { options[:change] = true }
+  opts.on('-r', '--remove', 'Remove all mails from the account') { options[:remove] = 'one' }
+  opts.on('-a', '--removeall', 'Remove all mails from the domain') { options[:remove] = 'all' }
+  opts.on('-i', '--info', 'Enter email account') { options[:info] = true }
+  opts.on('-h', '--help', 'Displays Help') { puts option_parser }
+end
+option_parser.parse!
+
 # Following block will retrive e-mail address from command line.
-# If they pass the validation it will pass to the E-mail toggle class.
+# We are using ARGV to retrieve multiple e-mail address
+# If they pass the validation it will pass to the corresponding classes.
 if ARGV.empty?
+  puts 'No e-mail address provided'
   puts "#{option_parser}"
+  exit
 else
   ARGV.each do|emailadd|
-    if emailadd.include? '@'
-      options[:email] = emailadd.downcase
-      options[:domain] = emailadd.split('@').last.downcase
-      dom_check = `grep ^#{options[:domain]} /etc/userdomains`
-      if dom_check.empty?
-        puts 'Given domain doesn\'t exist'
-      else
-        mailtoggle = EmailToggle.new(options)
-        mailtoggle.change_email_password if options[:change]
-        mailtoggle.clear_queue if options[:remove]
-      end
-    else
-      puts 'Invalid Email address entered'
+    options[:email] = emailadd.downcase
+    options[:domain] = emailadd.split('@').last.downcase
+    if email_validation(emailadd) && options[:change]
+      mailtoggle = ChangeEmailPassword.new(options)
+      mailtoggle.change_password
+      mailtoggle.user_details if options[:info]
+    end
+    if options[:remove]
+      queue = ClearMailQueue.new(options)
+      queue.clear_queue
     end
   end
 end
