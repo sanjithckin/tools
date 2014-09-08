@@ -103,7 +103,7 @@ class ClearMailQueue
   end
 end
 
-# Getting command line arguments uding optparse
+# Getting command line arguments using optparse
 require 'optparse'
 options = { email: nil, change: false, remove: false, domain: nil, info: false, help: false }
 option_parser = OptionParser.new do |opts|
