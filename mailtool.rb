@@ -5,6 +5,29 @@
 # e-mails from one e-mail / domain from the queue
 executable_name = File.basename($PROGRAM_NAME)
 
+# Following class will validate e-mail address
+class ValidateEmail
+  def initialize(email)
+    @email = email
+  end
+
+# Following method will validate e-mail adddres  
+  def email_validation
+    if @email.include? '@'
+      domain = @email.split('@').last.downcase
+      dom_check = `grep ^#{domain} /etc/userdomains`
+      if dom_check.empty?
+        puts "The domain #{domain} doesn\'t exist"
+      else
+        true
+      end
+    else
+      puts 'Invalid e-mail address entered'
+      false
+    end
+  end
+end
+
 # Following class will take email addressfrom optparse/ ARGV and change password
 class ChangeEmailPassword
   # Configure below values
@@ -53,7 +76,7 @@ class ChangeEmailPassword
     puts "Domain name: #{@domain}"
     puts "Domain owner: #{@username}"
     trueuser = `grep -w \^#{@username} /etc/trueuserowners|cut -d\: -f2|uniq`.chomp
-    puts 'True owner: ' + `grep -w #{trueuser}$ /etc/trueuserdomains|uniq` if trueuser != root
+    puts 'True owner: ' + `grep -w #{trueuser}$ /etc/trueuserdomains|uniq` if trueuser != 'root'
   end
 end
 
@@ -77,22 +100,6 @@ class ClearMailQueue
     else
       puts "Didn't remove any emails from the mailque"
     end
-  end
-end
-
-# Following method will validate e-mail adddres
-def email_validation(emailaddress)
-  if emailaddress.include? '@'
-    domain = emailaddress.split('@').last.downcase
-    dom_check = `grep ^#{domain} /etc/userdomains`
-    if dom_check.empty?
-      puts "The domain #{domain} doesn\'t exist"
-    else
-      true
-    end
-  else
-    puts 'Invalid e-mail address entered'
-    false
   end
 end
 
@@ -120,7 +127,7 @@ option_parser = OptionParser.new do |opts|
 end
 option_parser.parse!
 
-# Following block will retrive e-mail address from command line.
+# Following block will retrieve e-mail address from command line.
 # We are using ARGV to retrieve multiple e-mail address
 # If they pass the validation it will pass to the corresponding classes.
 if ARGV.empty? && options[:help] == false
@@ -131,7 +138,8 @@ else
   ARGV.each do|emailadd|
     options[:email] = emailadd.downcase
     options[:domain] = emailadd.split('@').last.downcase
-    if email_validation(emailadd) && options[:change]
+    validation = ValidateEmail.new(emailadd)
+    if validation.email_validation && options[:change]
       mailtoggle = ChangeEmailPassword.new(options)
       mailtoggle.change_password
       mailtoggle.user_details if options[:info]
