@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 # encoding=utf-8
-# This scripts will provide the functionalty to change password
+# This scripts will provide the functionality to change password
 # of multiple e-mail accounts along with the option to remove all
 # e-mails from one e-mail / domain from the queue
 executable_name = File.basename($PROGRAM_NAME)
@@ -11,9 +11,9 @@ HASH_FILE_PATH = '/root/.accesshash'
 LOG_FILE_PATH = '/root/direct_login_spam.log'
 # Configuration finished
 
-# Class to validate and normalise e-mail address and get domain name / username.
+# Class to validate and normalize e-mail address and get domain name / username.
 class Email
-  attr_reader :email, :domain, :username, :normalized_email
+  attr_reader :email, :normalized_email, :domain, :username
   def initialize(email)
     @email = email
   end
@@ -39,7 +39,7 @@ class Email
     domain
   end
 
-  # Check domain existense
+  # Check domain existence
   def check_valid_domain
     @dom_check = `grep ^#{domain} /etc/userdomains`
     if @dom_check.empty?
@@ -65,7 +65,7 @@ class Email
   end
 end
 
-# Class take email addressfrom optparse/ ARGV and change password
+# Class take email address from optparse/ ARGV and change password
 class ChangeEmailPassword
   require 'securerandom' ## Used to Generate password
   require 'lumberg'  ## Used to interact with C-panel api
@@ -130,7 +130,7 @@ option_parser = OptionParser.new do |opts|
   opts.separator 'Options'
   opts.separator '-c or --changepassword: Changes password of e-mail account'
   opts.separator '-r or --remove: Removes e-mails from given e-mail account'
-  opts.separator '-a or --removeall: Removes all e-mails from particlar domain'
+  opts.separator '-a or --removeall: Removes all e-mails from particular domain'
   opts.separator '-i or --info : Displays domain information'
   opts.separator '-h or --help : Displays this Help'
 
