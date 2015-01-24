@@ -8,7 +8,8 @@ executable_name = File.basename($PROGRAM_NAME)
 # Configure script values
 HOST_NAME = 'localhost'
 HASH_FILE_PATH = '/root/.accesshash'
-LOG_FILE_PATH = '/root/direct_login_spam.log'
+LOG_FILE_PATH = '/var/log/mail_tool.log'
+SPAM_LOG_FILE_PATH = '/var/log/mailtool_spam.log'
 # Configuration finished
 
 # Class to validate and normalize e-mail address and get domain name / username.
@@ -43,7 +44,7 @@ class Email
   def check_valid_domain
     @dom_check = `grep ^#{domain} /etc/userdomains`
     if @dom_check.empty?
-      puts "The domain #{domain} doesn\'t exist"
+      false
     else
       true
     end
@@ -55,13 +56,27 @@ class Email
     username
   end
 
-  # Method to Print mail details
+  # Method to check e-mail account existense
+  def check_email_existense
+    @email_account_without_domain = normalized_email.split('@').first
+    @home = `grep ^#{username} /etc/passwd | cut -d \: -f6`.chomp
+    @email_account_search = `grep -w #{@email_account_without_domain} #{@home}/etc/#{domain}/passwd`
+    if @email_account_search.empty?
+      puts "E-mail account #{normalized_email} doesn't exist"
+    else
+      true
+    end
+  end
+
+  # Method to Print account details
   def print_details
+    puts '=================: Userd-details: ============'
     puts "Email-address: #{email}"
     puts "Domain name: #{domain}"
     puts "Domain owner: #{username}"
     @trueuser = `grep -w \^#{username} /etc/trueuserowners|cut -d\: -f2|uniq`.chomp
     puts 'True owner: ' + `grep -w #{@trueuser}$ /etc/trueuserdomains|uniq` if @trueuser != 'root'
+    puts '=============================================='
   end
 end
 
@@ -82,18 +97,20 @@ class ChangeEmailPassword
     # https://github.com/site5/lumberg
     server = Lumberg::Whm::Server.new(host: HOST_NAME, hash: `cat #{HASH_FILE_PATH}`)
     cp_email = Lumberg::Cpanel::Email.new(server: server, api_username: @username)
-    puts "Changing password of #{@email} using lumberg"
+    puts "Trying to change password of #{@email}"
     @password = SecureRandom.urlsafe_base64(12)
     process_options = { domain: @domain, email: @email, password: @password }
     passwd_result = cp_email.change_password(process_options)
     if passwd_result[:params][:data][0][:reason] == ''
       puts "Successfully changed password of #{@email}"
+      puts ''
       time = Time.new
       logtime = time.strftime('%Y-%m-%d %H:%M')
       File.open("#{LOG_FILE_PATH}", 'a') { |logfile| logfile.puts "#{logtime}: #{@email}" }
     else
       # Print c-panel error message if failed to change the password
       puts "#{passwd_result[:params][:data][0][:reason]}"
+      puts ''
     end
   end
 end
@@ -104,17 +121,56 @@ class MailQueue
     @email = options[:email]
     @remove = options[:remove]
     @domain = options[:domain]
+    @valid_domain = options[:valid_domain]
+    @search_direction = options[:direction]
+    case @search_direction
+    when 'From'
+      @direction = '-f'
+    when 'To'
+      @direction = '-r'
+    else
+      @direction = '-f'
+    end
   end
 
   # Method to clear mailqueue
+  def log
+    @comment_text = '=====Spam log for the account ' + "#{@email}" + '====='
+    time = Time.new
+    logtime = time.strftime('%Y-%m-%d %H:%M')
+    @mailcount = `exiqgrep -c #{@direction} #{@email}`
+    @mail_exim_id = `exiqgrep -i -R #{@direction} #{@email} | tail -1`
+    @full_mail_body = `exim -Mvc #{@mail_exim_id}`
+    @mail_log = `exim -Mvl #{@mail_exim_id}`
+    File.open("#{SPAM_LOG_FILE_PATH}", 'a') do |spam_logfile|
+      spam_logfile.puts "#{logtime}: #{@email}"
+      spam_logfile.puts "#{@comment_text}"
+      spam_logfile.puts "Email count: #{@emailcount}"
+      spam_logfile.puts '====================================='
+      spam_logfile.puts "#{@full_mail_body}"
+      spam_logfile.puts ''
+      spam_logfile.puts "#{@mail_log}"
+      spam_logfile.puts '====================================='
+      spam_logfile.puts ''
+    end
+  end
+
   def clear_queue
     case @remove
     when 'one'
-      puts "Clearing e-mails under #{@email}"
-      `exiqgrep -i -f #{@email} | xargs -P10 -i exim -Mrm '{}' | tail -1`
+      puts "Clearing e-mails #{@search_direction} #{@email}"
+      puts ''
+      `exiqgrep -i #{@direction} #{@email} | xargs -P10 -i exim -Mrm '{}' > /dev/null`
     when 'all'
-      puts "Removing all e-mails under #{@domain}"
-      `exiqgrep -i -f #{@domain} | xargs -P10 -i exim -Mrm '{}' | tail -1`
+      if @valid_domain
+        puts "Removing all e-mails #{@search_direction} #{@domain}"
+        `exiqgrep -i #{@direction} #{@domain} | xargs -P10 -i exim -Mrm '{}' > /dev/null`
+        puts ''
+      else
+        puts "#{@domain} is not a valid local domain. Removing e-mails #{@search_direction} #{@email} instead"
+        `exiqgrep -i #{@direction} #{@email} | xargs -P10 -i exim -Mrm '{}' > /dev/null`
+        puts ''
+      end
     else
       puts "Didn't remove any emails from the mailque"
     end
@@ -123,21 +179,18 @@ end
 
 # Getting command line arguments using optparse
 require 'optparse'
-options = { email: nil, change: false, remove: false, domain: nil, info: false, help: false }
+options = { email: nil, change: false, remove: false, domain: nil, info: false, help: false, valid_domain: false, direction: 'From' }
 option_parser = OptionParser.new do |opts|
-  opts.banner = "Usage: #{executable_name} [Options]"
-  opts.separator ''
+  opts.banner = "Usage\: #{executable_name} \-options \<emailaddress\(s\)\>"
   opts.separator 'Options'
-  opts.separator '-c or --changepassword: Changes password of e-mail account'
-  opts.separator '-r or --remove: Removes e-mails from given e-mail account'
-  opts.separator '-a or --removeall: Removes all e-mails from particular domain'
-  opts.separator '-i or --info : Displays domain information'
+  opts.separator '-c [--changepassword ] -r [ --remove] -a  [ --removeall] -i [--info ] -d [ --direction] <emailaddress(s)>'
   opts.separator '-h or --help : Displays this Help'
-
-  opts.on('-c', '--changepassword', 'Enter email account') { options[:change] = true }
-  opts.on('-r', '--remove', 'Remove all mails from the account') { options[:remove] = 'one' }
-  opts.on('-a', '--removeall', 'Remove all mails from the domain') { options[:remove] = 'all' }
-  opts.on('-i', '--info', 'Enter email account') { options[:info] = true }
+  opts.separator ''
+  opts.on('-c', '--changepassword', 'Changes password of given e-mail account(s)') { options[:change] = true }
+  opts.on('-r', '--remove', 'Remove all mails from the account(s)') { options[:remove] = 'one' }
+  opts.on('-a', '--removeall', 'Remove all mails from the domain(s)') { options[:remove] = 'all' }
+  opts.on('-i', '--info', 'Prints account information') { options[:info] = true }
+  opts.on('-d', '--direction', 'It toggles the direction of mailque search From -> To') { options[:direction] = 'To' }
   opts.on('-h', '--help', 'Displays Help') do
     options[:help] = true
     puts option_parser
@@ -149,7 +202,6 @@ option_parser.parse!
 # We are using ARGV to retrieve multiple e-mail address
 # If they pass the validation it will pass to the corresponding classes.
 if ARGV.empty? && options[:help] == false
-  puts 'Please enter some options and e-mail address'
   puts "#{option_parser}"
   exit
 else
@@ -157,14 +209,20 @@ else
     email = Email.new(email_address)
     options[:email] = email.normalize
     options[:domain] = email.domain_info
-    if email.email_validate && email.check_valid_domain && options[:change]
+    options[:valid_domain] = email.check_valid_domain
+    if email.email_validate && options[:valid_domain] && options[:change]
       options[:username] = email.cpanel_username
-      change_email_password = ChangeEmailPassword.new(options)
-      change_email_password.change_password
-      email.print_details if options[:info]
+      if email.check_email_existense == true
+        change_email_password = ChangeEmailPassword.new(options)
+        change_email_password.change_password
+        email.print_details if options[:info]
+      end
+    elsif options[:valid_domain] == false
+      puts "Unable to change the password: The domain #{options[:domain]} doesn\'t exist"
     end
     if options[:remove]
       queue = MailQueue.new(options)
+      queue.log
       queue.clear_queue
     end
   end
