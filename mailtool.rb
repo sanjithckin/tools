@@ -76,7 +76,7 @@ class Email
     puts "Domain owner: #{username}"
     @trueuser = `grep -w \^#{username} /etc/trueuserowners|cut -d\: -f2|uniq`.chomp
     puts 'True owner: ' + `grep -w #{@trueuser}$ /etc/trueuserdomains|uniq` if @trueuser != 'root'
-    puts ''
+    puts '============================================'
   end
 end
 
@@ -101,7 +101,6 @@ class ChangeEmailPassword
     process_options = { domain: @domain, email: @email, password: @password }
     passwd_result = cp_email.change_password(process_options)
     if passwd_result[:params][:data][0][:reason] == ''
-      puts ''
       puts "Successfully changed password of #{@email}"
       time = Time.new
       logtime = time.strftime('%Y-%m-%d %H:%M')
