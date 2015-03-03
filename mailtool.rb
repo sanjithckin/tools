@@ -142,8 +142,8 @@ class MailQueue
     time = Time.new
     logtime = time.strftime('%Y-%m-%d %H:%M')
     @mail_exim_id = `exiqgrep -i -R #{@direction} #{@email} | tail -1`
-    @full_mail_body = `exim -Mvc #{@mail_exim_id} 2>/dev/null`
-    @mail_log = `exim -Mvl #{@mail_exim_id} 2>/dev/null`
+    @full_mail_body = `exim -Mvc #{@mail_exim_id} /dev/null`
+    @mail_log = `exim -Mvl #{@mail_exim_id} /dev/null`
     File.open("#{SPAM_LOG_FILE_PATH}", 'a') do |spam_logfile|
       spam_logfile.puts "#{logtime}: #{@email}"
       spam_logfile.puts "#{@comment_text}"
@@ -162,14 +162,14 @@ class MailQueue
     when 'one'
       puts "Clearing e-mails #{@search_direction} #{@email}"
       puts ''
-      `exiqgrep -i #{@direction} #{@email} | xargs -P10 -i exim -Mrm '{}' > /dev/null`
+      `exiqgrep -i #{@direction} #{@email} | xargs -P10 -i exim -Mrm '{}' >/dev/null`
     when 'all'
       if @valid_domain
         puts "Removing all e-mails #{@search_direction} #{@domain}"
-        `exiqgrep -i #{@direction} #{@domain} | xargs -P10 -i exim -Mrm '{}' > /dev/null`
+        `exiqgrep -i #{@direction} #{@domain} | xargs -P10 -i exim -Mrm '{}' >/dev/null`
       else
         puts "#{@domain} is not a valid local domain. Removing e-mails #{@search_direction} #{@email} instead"
-        `exiqgrep -i #{@direction} #{@email} | xargs -P10 -i exim -Mrm '{}' > /dev/null`
+        `exiqgrep -i #{@direction} #{@email} | xargs -P10 -i exim -Mrm '{}' >/dev/null`
       end
     else
       puts "Didn't remove any emails from the mailque"
