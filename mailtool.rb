@@ -192,7 +192,7 @@ options = { email: nil, change: false, remove: false, domain: nil, info: false, 
 option_parser = OptionParser.new do |opts|
   opts.banner = "Usage\: #{executable_name} \[-options] \<emailaddress\(s\)\>"
   opts.separator 'Options'
-  opts.separator '-c [--changepassword ] -r [ --remove] -a  [ --removeall] -i [--info ] -d [ --direction] <emailaddress(s)>'
+  opts.separator '-c [--changepassword ] -r [ --remove] -a [ --removeall] -i [--info ] -d [ --direction] <emailaddress(s)>'
   opts.separator '-h or --help : Displays this Help'
   opts.separator ''
   opts.on('-c', '--changepassword', 'Changes password of given e-mail account(s)') { options[:change] = true }
