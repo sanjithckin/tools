@@ -241,6 +241,6 @@ else
         queue.message
       end
     end
-    puts '------------------------------------------'
+    puts ''
   end
 end
