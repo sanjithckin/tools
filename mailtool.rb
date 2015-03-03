@@ -196,8 +196,8 @@ option_parser = OptionParser.new do |opts|
   opts.separator '-h or --help : Displays this Help'
   opts.separator ''
   opts.on('-c', '--changepassword', 'Changes password of given e-mail account(s)') { options[:change] = true }
-  opts.on('-r', '--remove', 'Remove all mails from the account(s)') { options[:remove] = 'one' }
-  opts.on('-a', '--removeall', 'Remove all mails from the domain(s)') { options[:remove] = 'all' }
+  opts.on('-r', '--remove', 'Remove all mails sent from or to the account(s)') { options[:remove] = 'one' }
+  opts.on('-a', '--removeall', 'Remove all mails sent from or to the domain(s)') { options[:remove] = 'all' }
   opts.on('-i', '--info', 'Prints account information') { options[:info] = true }
   opts.on('-d', '--direction', 'It toggles the direction of mailque search From -> To') { options[:direction] = 'To' }
   opts.on('-h', '--help', 'Displays Help') do
