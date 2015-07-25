@@ -14,7 +14,7 @@ SPAM_LOG_FILE_PATH = '/var/log/mailtool_spam.log'
 
 # Class to validate and normalize e-mail address and get domain name / username.
 class Email
-  attr_reader :email, :normalized_email, :domain, :username
+  attr_reader :email, :normalized_email, :domain, :username, :home, :email_account_without_domain
   def initialize(email)
     @email = email
   end
@@ -65,6 +65,27 @@ class Email
       puts "E-mail account #{normalized_email} doesn't exist"
     else
       true
+    end
+  end
+
+  # Method to backup existing password
+  def backuppassword
+    @shadow = "#{@home}/etc/#{domain}/shadow"
+    @backup_account = `grep -w ^#{@email_account_without_domain} #{@shadow} > #{@home}/#{@email_account_without_domain}.mailtool`
+  end
+
+  # Method to restore password
+  def restorepassword
+    @shadow = "#{@home}/etc/#{domain}/shadow"
+    @backup = "#{@home}/#{@email_account_without_domain}.mailtool"
+    @backup_shadow_account = `grep -w #{@email_account_without_domain} #{@backup} 2>/dev/null`.chomp
+    @current_shadow_account = `grep -w #{@email_account_without_domain} #{@shadow} 2>/dev/null`.chomp
+    if File.exist?("#{@backup}")
+      @replace = `replace '#{@current_shadow_account}' '#{@backup_shadow_account}' -- #{@shadow}`
+      puts 'Sucessfully restored the password' if @replace
+      File.delete("#{@backup}")
+    else
+      puts 'No password backup found'
     end
   end
 
@@ -188,14 +209,16 @@ end
 
 # Getting command line arguments using optparse
 require 'optparse'
-options = { email: nil, change: false, remove: false, domain: nil, info: false, help: false, valid_domain: false, direction: 'From' }
+options = { email: nil, change: false, remove: false, domain: nil, info: false, help: false, valid_domain: false, direction: 'From', restore: false }
 option_parser = OptionParser.new do |opts|
   opts.banner = "Usage\: #{executable_name} \[-options] \<emailaddress\(s\)\>"
   opts.separator 'Options'
   opts.separator '-c [--changepassword ] -r [ --remove] -a [ --removeall] -i [--info ] -d [ --direction] <emailaddress(s)>'
+  opts.separator '-e [--restore] <emailaddress(s)>'
   opts.separator '-h or --help : Displays this Help'
   opts.separator ''
   opts.on('-c', '--changepassword', 'Changes password of given e-mail account(s)') { options[:change] = true }
+  opts.on('-e', '--restore', 'Restore password of e-mail account(s)') { options[:restore] = true }
   opts.on('-r', '--remove', 'Remove all mails sent from or to the account(s)') { options[:remove] = 'one' }
   opts.on('-a', '--removeall', 'Remove all mails sent from or to the domain(s)') { options[:remove] = 'all' }
   opts.on('-i', '--info', 'Prints account information') { options[:info] = true }
@@ -222,7 +245,10 @@ else
     if email.email_validate && options[:valid_domain]
       options[:username] = email.cpanel_username
       if email.check_email_existense == true
-        if options[:change]
+        puts 'You cannot use both backup and restore options simultaneously' if options[:restore] && options[:change]
+        email.restorepassword if options[:restore] && !options[:change]
+        if options[:change] && !options[:restore]
+          email.backuppassword
           change_email_password = ChangeEmailPassword.new(options)
           change_email_password.change_password
         end
