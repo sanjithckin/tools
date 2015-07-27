@@ -9,7 +9,7 @@ executable_name = File.basename($PROGRAM_NAME)
 HOST_NAME = 'localhost'
 HASH_FILE_PATH = '/root/.accesshash'
 LOG_FILE_PATH = '/var/log/mail_tool.log'
-SPAM_LOG_FILE_PATH = '/var/log/mailtool_spam.log'
+SPAM_LOG_FILE_PATH = '/var/log/mailtool.log'
 # Configuration finished
 
 # Class to validate and normalize e-mail address and get domain name / username.
@@ -70,14 +70,16 @@ class Email
 
   # Method to backup existing password
   def backuppassword
-    @shadow = "#{@home}/etc/#{domain}/shadow"
-    @backup_account = `grep -w ^#{@email_account_without_domain} #{@shadow} > #{@home}/#{@email_account_without_domain}.mailtool`
+    @shadow_location = "#{@home}/etc/#{domain}"
+    @shadow = "#{@shadow_location}/shadow"
+    @backup_account = `grep -w ^#{@email_account_without_domain} #{@shadow} > #{@shadow_location}/#{@email_account_without_domain}.mailtool`
   end
 
   # Method to restore password
   def restorepassword
-    @shadow = "#{@home}/etc/#{domain}/shadow"
-    @backup = "#{@home}/#{@email_account_without_domain}.mailtool"
+    @shadow_location = "#{@home}/etc/#{domain}"
+    @shadow = "#{@shadow_location}/shadow"
+    @backup = "#{@shadow_location}/#{@email_account_without_domain}.mailtool"
     @backup_shadow_account = `grep -w #{@email_account_without_domain} #{@backup} 2>/dev/null`.chomp
     @current_shadow_account = `grep -w #{@email_account_without_domain} #{@shadow} 2>/dev/null`.chomp
     if File.exist?("#{@backup}")
